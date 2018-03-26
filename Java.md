@@ -32,3 +32,28 @@ SXSSFWorkbook wb = new SXSSFWorkbook(100); // keep 100 rows in memory, exceeding
   SXSSFWorkbook wb = new SXSSFWorkbook(); 
   wb.setCompressTempFiles(true); // temp files will be gzipped
 ```
+
+
+
+##Quartz
+
+### 如何基于Quartz做的集群任务
+
+http://www.importnew.com/22896.html
+
+
+
+###Quartz是如何基于数据库做锁的？
+
+核心点在于for update
+
+```
+public static final String SELECT_FOR_LOCK = "SELECT * FROM " 
+            + TABLE_PREFIX_SUBST + TABLE_LOCKS + " WHERE " + COL_SCHEDULER_NAME + " = " + SCHED_NAME_SUBST  
+            + " AND " + COL_LOCK_NAME + " = ? FOR UPDATE";  
+
+public static final String INSERT_LOCK = "INSERT INTO " 
+        + TABLE_PREFIX_SUBST + TABLE_LOCKS + "(" + COL_SCHEDULER_NAME + ", " + COL_LOCK_NAME + ") VALUES ("  
+        + SCHED_NAME_SUBST + ", ?)";
+```
+当不存在记录则插入
