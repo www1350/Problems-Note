@@ -17,7 +17,7 @@ XSSFWorkbook:是操作Excel2007-2010的版本，扩展名是.xlsx对于不同版
 方案2 切分sheet
 
 **注意** 
-```
+```java
 SXSSFWorkbook wb = new SXSSFWorkbook(100); // keep 100 rows in memory, exceeding rows will be flushed to disk  
 
  SXSSFWorkbook wb = new SXSSFWorkbook(-1); // turn off auto-flushing and accumulate all rows in memory     
@@ -28,14 +28,14 @@ SXSSFWorkbook wb = new SXSSFWorkbook(100); // keep 100 rows in memory, exceeding
 
 每个sheet都会生成一个临时文件，SXSSF会把数据刷到里面去，临时文件可能变得很大。例如，20MB的csv数据临时xml文件将会超过10亿字节。可以让SXSSF用gzip压缩
 
-```
+```java
   SXSSFWorkbook wb = new SXSSFWorkbook(); 
   wb.setCompressTempFiles(true); // temp files will be gzipped
 ```
 
 
 
-##Quartz
+## Quartz
 
 ### 如何基于Quartz做的集群任务
 
@@ -43,11 +43,11 @@ http://www.importnew.com/22896.html
 
 
 
-###Quartz是如何基于数据库做锁的？
+### Quartz是如何基于数据库做锁的？
 
 核心点在于for update
 
-```
+```java
 public static final String SELECT_FOR_LOCK = "SELECT * FROM " 
             + TABLE_PREFIX_SUBST + TABLE_LOCKS + " WHERE " + COL_SCHEDULER_NAME + " = " + SCHED_NAME_SUBST  
             + " AND " + COL_LOCK_NAME + " = ? FOR UPDATE";  
@@ -125,3 +125,33 @@ update的teacher_id=20是在(5，30]区间，即使没有修改任何数据，In
 来自https://tech.meituan.com/innodb-lock.html
 
 **解决方案** 调整隔离级别为RC(read committed)
+
+
+
+## 缓存
+
+### 空值异常（缓存穿透）
+
+**问题** 当业务数据为 null 时，无法确定是否已经缓存，会造成缓存无法命中
+
+**方案** 
+
+方案1 对于 null 的数据，需要做特殊处理，比如使用特殊字符串进行替换。缓存使用warpper类进行封装
+
+方案2  缓存设置一个过期时间`cache.expire(key,60*15)`
+
+
+
+### key 冲突问题
+
+**问题** key可能冲突
+
+**方案** 使用namespace
+
+
+
+### 缓存雪崩
+
+**问题** 由于缓存层承载着大量请求，有效的保护了存储层，但是如果缓存层由于某些原因整体不能提供服务，于是所有的请求都会达到存储层，存储层的调用量会暴增，造成存储层也会挂掉的情况。
+
+**方案** 1.集群保证缓存高可用2.隔离组件限流降级
