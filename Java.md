@@ -57,3 +57,71 @@ public static final String INSERT_LOCK = "INSERT INTO "
         + SCHED_NAME_SUBST + ", ?)";
 ```
 当不存在记录则插入
+
+
+
+## mysql
+
+### 死锁
+
+#### 怎样降低 innodb 死锁几率？
+
+- 尽量使用较低的隔离级别，比如如果发生了间隙锁，你可以把会话或者事务的事务隔离级别更改为 RC(read committed)级别来避免，但此时需要把 binlog_format 设置成 row 或者 mixed 格式
+- 精心设计索引，并尽量使用索引访问数据，使加锁更精确，从而减少锁冲突的机会；
+- 选择合理的事务大小，小事务发生锁冲突的几率也更小；
+- 给记录集显示加锁时，最好一次性请求足够级别的锁。比如要修改数据的话，最好直接申请排他锁，而不是先申请共享锁，修改时再请求排他锁，这样容易产生死锁；
+- 不同的程序访问一组表时，应尽量约定以相同的顺序访问各表，对一个表而言，尽可能以固定的顺序存取表中的行。这样可以大大减少死锁的机会；
+- 尽量用相等条件访问数据，这样可以避免间隙锁对并发插入的影响；
+- 不要申请超过实际需要的锁级别；除非必须，查询时不要显示加锁；
+- 对于一些特定的事务，可以使用表锁来提高处理速度或减少死锁的可能。
+
+
+
+#### ON DUPLICATE KEY UPDATE或者replace into造成的死锁问题？
+
+**问题描述** RR(REPEATABLE READ)隔离级别下并发执行出现deadlock
+
+**原因** RR级别中，事务A在update后加Gap锁，事务B无法插入新数据，这样事务A在update前后读的数据保持一致，避免了幻读。
+
+##### 什么是Gap锁？ 
+
+RC级别：
+
+| 事务A                                                        | 事务B                                                        |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+| begin;                                                       | begin;                                                       |
+| select id,class_name,teacher_id from class_teacher where teacher_id=30;idclass_nameteacher_id2初三二班30 |                                                              |
+| update class_teacher set class_name='初三四班' where teacher_id=30; |                                                              |
+|                                                              | insert into class_teacher values (null,'初三二班',30);commit; |
+| select id,class_name,teacher_id from class_teacher where teacher_id=30;idclass_nameteacher_id2初三四班3010初三二班30 |                                                              |
+
+RR级别：
+
+| 事务A                                                        | 事务B                                                        |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+| begin;                                                       | begin;                                                       |
+| select id,class_name,teacher_id from class_teacher where teacher_id=30;idclass_nameteacher_id2初三二班30 |                                                              |
+| update class_teacher set class_name='初三四班' where teacher_id=30; |                                                              |
+|                                                              | insert into class_teacher values (null,'初三二班',30);waiting.... |
+| select id,class_name,teacher_id from class_teacher where teacher_id=30;idclass_nameteacher_id2初三四班30 |                                                              |
+| commit;                                                      | 事务Acommit后，事务B的insert执行。                           |
+
+![mage-20180326151916](/var/folders/cf/lq_f9wkn3gx_l9nghhvyt7240000gn/T/abnerworks.Typora/image-201803261519169.png)
+
+Innodb将这段数据分成几个个区间
+
+- (negative infinity, 5],
+- (5,30],
+- (30,positive infinity)；
+
+update class_teacher set class_name='初三四班' where teacher_id=30;不仅用行锁，锁住了相应的数据行；同时也在两边的区间，（5,30]和（30，positive infinity），都加入了gap锁。这样事务B就无法在这个两个区间insert进新数据。
+
+update的teacher_id=20是在(5，30]区间，即使没有修改任何数据，Innodb也会在这个区间加gap锁，而其它区间不会影响，事务C正常插入。
+
+如果使用的是没有索引的字段，比如update class_teacher set teacher_id=7 where class_name='初三八班（即使没有匹配到任何数据）',那么会给全表加入gap锁。同时，它不能像上文中行锁一样经过MySQL Server过滤自动解除不满足条件的锁，因为没有索引，则这些字段也就没有排序，也就没有区间。除非该事务提交，否则其它事务无法插入任何数据。
+
+行锁防止别的事务修改或删除，GAP锁防止别的事务新增，行锁和GAP锁结合形成的的Next-Key锁共同解决了RR级别在写数据时的幻读问题。
+
+来自https://tech.meituan.com/innodb-lock.html
+
+**解决方案** 调整隔离级别为RC(read committed)
