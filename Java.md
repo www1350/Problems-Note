@@ -128,6 +128,45 @@ update的teacher_id=20是在(5，30]区间，即使没有修改任何数据，In
 
 
 
+## ORM
+
+### mybatis使用useGeneratedKeys="true" keyProperty="id"无法取得主键 
+
+分析： 如果在插入后马上取id，取出来是空，如果在事务外或者采用
+
+```xml
+<selectKey resultType="java.lang.Long" order="AFTER" keyProperty="id" >       
+	SELECT LAST_INSERT_ID()    
+</selectKey>
+```
+
+是可以取得id的 解决方法： 对mybatis配置设置 
+```xml
+<setting name="defaultExecutorType" value="REUSE" />
+```
+
+下面是附上的解释：
+
+![mage-20180331123537](https://cloud.githubusercontent.com/assets/7789698/17579219/4004a4aa-5fc5-11e6-8edc-54180a61468d.png)
+
+
+
+
+
+## spring
+
+### springboot 1.4.0 org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'entityManagerFactory' defined in class path 
+
+分析
+
+resource Caused by: java.io.FileNotFoundException: class path resource [] cannot be resolved to URL because it does not exist at org.springframework.core.io.ClassPathResource.getURL(ClassPathResource.java:187) ~[spring-core-4.3.1.BUILD-SNAPSHOT.jar!/:4.3.1.BUILD-SNAPSHOT] at org.springframework.orm.jpa.persistenceunit.DefaultPersistenceUnitManager.determineDefaultPersistenceUnitRootUrl(DefaultPersistenceUnitManager.java:600) ~[spring-orm-4.3.1.BUILD-SNAPSHOT.jar!/:4.3.1.BUILD-SNAPSHOT] ... 31 common frames omitted
+
+解决方法 @EnableAutoConfiguration(exclude=HibernateJpaAutoConfiguration.class) must be set on the application class spring.data.jpa.repositories.enabled=false must be set in the application properties/yml. 如果还是解决不了。升级到1.4.1吧！
+
+
+
+
+
 ## 缓存
 
 ### 空值异常（缓存穿透）
@@ -155,3 +194,96 @@ update的teacher_id=20是在(5，30]区间，即使没有修改任何数据，In
 **问题** 由于缓存层承载着大量请求，有效的保护了存储层，但是如果缓存层由于某些原因整体不能提供服务，于是所有的请求都会达到存储层，存储层的调用量会暴增，造成存储层也会挂掉的情况。
 
 **方案** 1.集群保证缓存高可用2.隔离组件限流降级
+
+
+
+## JDBC
+
+### Parameter metadata not available for the given statement
+
+解决方法： jdbcurl后面加上&generateSimpleParameterMetadata=true
+
+
+
+## shell
+
+### -bash: test.asc: Permission denied
+
+解决方法： $ sudo sh -c 'echo "又一行信息" >> test.asc'
+
+或
+
+$ echo "第三条信息" | sudo tee -a test.asc
+
+
+
+## HttpClient
+
+### HttpClient 超过1M报 Going to buffer response body of large or unknown size. Using getResponseBodyAsStream instead is recommended.
+
+```java
+InputStream inputStream = method.getResponseBodyAsStream();
+//解决乱码问题
+                BufferedReader br = new BufferedReader(new InputStreamReader(inputStream,"UTF-8"));
+                StringBuffer stringBuffer = new StringBuffer();
+                String str= "";
+                while((str = br.readLine()) != null){
+                stringBuffer .append(str );
+                }
+                stringBuffer.toString();
+```
+
+
+
+
+## 消息队列
+
+### windows下rabbitmq 遇到Error: unable to connect to node rabbit@WWW: nodedown
+
+解决方法： 权限问题，装在非系统盘
+
+
+
+## maven
+
+### maven依赖丢失和 Deployment Assembly 丢失
+
+![mage-20180331122713](https://cloud.githubusercontent.com/assets/7789698/16640927/ac038d7c-442e-11e6-9bfa-0986e110790d.png)
+
+## servlet
+
+### java.lang.NoClassDefFoundError: javax/servlet/jsp/jstl/core/Config
+
+```xml
+<dependency>
+    <groupId>jstl</groupId>
+    <artifactId>jstl</artifactId>
+    <version>1.2</version>
+</dependency>
+```
+
+
+## tomcat
+
+### @PathVariable中文乱码
+
+解决方法：
+
+1.String des = new String(s.getBytes("iso8859-1"),"UTF-8"); 2.tomcat的conf/server.xml
+
+```xml
+<Connector connectionTimeout="20000" port="8080" protocol="HTTP/1.1" redirectPort="8443" URIEncoding="UTF-8"/>
+```
+
+
+
+Eclipse报 
+
+*-Dmaven.multiModuleProjectDirectory system propery is not set. Check $M2_HOME environment variable and mvn script match.*
+
+解决方法： 可以设一个环境变量M2_HOME指向你的maven安装目录 M2_HOME=D:\Apps\apache-maven-3.3.1 然后在Window->Preference->Java->Installed JREs->Edit 在Default VM arguments中设置 -Dmaven.multiModuleProjectDirectory=$M2_HOME
+
+
+
+
+
