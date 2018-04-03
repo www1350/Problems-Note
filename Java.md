@@ -165,6 +165,16 @@ resource Caused by: java.io.FileNotFoundException: class path resource [] cannot
 
 
 
+### @Order
+
+java.lang.IllegalStateException: No MethodInvocation found: Check that an AOP invocation is in progress, and that the ExposeInvocationInterceptor is upfront in the interceptor chain. Specifically, note that advices with order HIGHEST_PRECEDENCE will execute before ExposeInvocationInterceptor! 
+
+https://jira.spring.io/browse/SPR-12351
+
+@Order一定不要设置为Ordered.HIGHEST_PRECEDENCE ，而是设置为Ordered.HIGHEST_PRECEDENCE + 1。
+
+
+
 
 
 ## 缓存
